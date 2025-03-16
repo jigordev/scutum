@@ -53,19 +53,19 @@ class UserPolicy(Policy)
 def create_user():
     user = current_user()
 
-    if guard.allowed("user:create", user): # If action is allowed
+    if gate.allowed("user:create", user): # If action is allowed
         return "You are authorized to create a user"
 
-    if guard.denied("user:create", user): # If action is denied
+    if gate.denied("user:create", user): # If action is denied
         return "You are not authorized to create a user"
 
-    if guard.any(["user:create", "user:delete"], user): # If any action
+    if gate.any(["user:create", "user:delete"], user): # If any action
         return "You have permission to create or delete a user."
 
-    if guard.none(["user:create", "user:delete"], user): # If none action
+    if gate.none(["user:create", "user:delete"], user): # If none action
         return "You do not have permission to create or delete a user."
 
-    response = guard.check("user:create", user) # bool or Response
+    response = gate.check("user:create", user) # bool or Response
     
     return response
 ```
