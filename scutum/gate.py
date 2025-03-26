@@ -1,25 +1,12 @@
 from typing import Callable, Union, List
-from thyros.policy import Policy
-from thyros.authorizable import Authorizable
-from thyros.response import Response
-from thyros.exceptions import AuthorizationException, ActionNotFoundException
+from scutum.policy import Policy
+from scutum.authorizable import Authorizable
+from scutum.response import Response
+from scutum.exceptions import AuthorizationException, ActionNotFoundException
 
 AuthorizationFunc = Callable[..., Union[Response, bool]]
 
-class Singleton:
-    _instance = None
-    _initialized = False
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __init__(self):
-        if not self._initialized:
-            self._initialized = True
-
-class Gate(Singleton):
+class Gate:
     def __init__(self):
         self._actions = set()
         self._policies = set()

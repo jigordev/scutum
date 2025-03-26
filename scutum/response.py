@@ -1,4 +1,4 @@
-from thyros.exceptions import AuthorizationException
+from scutum.exceptions import AuthorizationException
 
 class Response:
     def __init__(self, allowed=False, message="Permission denied", status_code=403, json=False):
