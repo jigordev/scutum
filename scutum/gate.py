@@ -1,8 +1,8 @@
 from typing import Callable, Union, List
-from thyros.policy import Policy
-from thyros.authorizable import Authorizable
-from thyros.response import Response
-from thyros.exceptions import AuthorizationException, ActionNotFoundException
+from scutum.policy import Policy
+from scutum.authorizable import Authorizable
+from scutum.response import Response
+from scutum.exceptions import AuthorizationException, ActionNotFoundException
 
 AuthorizationFunc = Callable[..., Union[Response, bool]]
 

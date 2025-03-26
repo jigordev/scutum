@@ -1,4 +1,4 @@
-from thyros.gate import Gate
+from scutum.gate import Gate
 
 class Authorizable:
     def __init__(self, gate: Gate):
