@@ -1,14 +1,14 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="thyros",
+    name="scutum",
     version="0.1.0",
     description="An authorization policies library inspired by Laravel's gates and policies.",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="jigordev",
     author_email="jigordev@gmail.com",
-    url="https://github.com/jigordev/thyros",
+    url="https://github.com/jigordev/scutum",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
