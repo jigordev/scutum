@@ -1,6 +1,5 @@
-from typing import Callable, Union, List
+from typing import Callable, Union, List, Any
 from scutum.policy import Policy
-from scutum.authorizable import Authorizable
 from scutum.response import Response
 from scutum.exceptions import AuthorizationException, ActionNotFoundException
 
@@ -52,7 +51,7 @@ class Gate:
             self._actions.remove(action)
             del self._map_functions[action]
 
-    def check(self, action: str, user: Authorizable, *args, **kwargs) -> Union[Response, bool]:
+    def check(self, action: str, user: Any, *args, **kwargs) -> Union[Response, bool]:
         if action not in self._actions:
             raise ActionNotFoundException(f"Action '{action}' not found")
         
@@ -61,24 +60,28 @@ class Gate:
             return result
         return bool(result)
 
-    def allowed(self, action: str, user: Authorizable, *args, **kwargs) -> bool:
-        response = self._map_functions[action](user, *args, **kwargs)
-        return response.allowed if isinstance(response, Response) else response
+    def allowed(self, action: str, user: Any, *args, **kwargs) -> bool:
+        response = self.check(action, user, *args, **kwargs)
+        if isinstance(response, Response):
+            return response.allowed
+        return response
 
-    def denied(self, action: str, user: Authorizable, *args, **kwargs) -> bool:
-        response = self._map_functions[action](user, *args, **kwargs)
-        return not response.allowed if isinstance(response, Response) else response
+    def denied(self, action: str, user: Any, *args, **kwargs) -> bool:
+        response = self.check(action, user, *args, **kwargs)
+        if isinstance(response, Response):
+            return not response.allowed
+        return not response
     
-    def authorize(self, action: str, user: Authorizable, *args, **kwargs) -> None:
-        response = self._map_functions[action](user, *args, **kwargs)
+    def authorize(self, action: str, user: Any, *args, **kwargs) -> None:
+        response = self.check(action, user, *args, **kwargs)
         if isinstance(response, Response):
             response.authorize()
 
         if isinstance(response, bool) and not response:
             raise AuthorizationException()
     
-    def any(self, actions: List[str], user: Authorizable, *args, **kwargs):
+    def any(self, actions: List[str], user: Any, *args, **kwargs):
         return any([self.allowed(action, user, *args, **kwargs) for action in actions])
 
-    def none(self, actions: List[str], user: Authorizable, *args, **kwargs):
+    def none(self, actions: List[str], user: Any, *args, **kwargs):
         return not self.any(actions, user, *args, **kwargs)
