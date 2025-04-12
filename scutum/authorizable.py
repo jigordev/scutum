@@ -1,11 +1,10 @@
-from scutum.gate import Gate
-
-class Authorizable:
-    def __init__(self, gate: Gate):
-        self.gate = gate
-
+def authorizable(cls, gate):
     def can(self, action: str, *args, **kwargs):
-        return self.gate.allowed(action, self, *args, **kwargs)
+        return gate.allowed(action, self, *args, **kwargs)
     
     def cannot(self, action: str, *args, **kwargs):
-        return self.gate.denied(action, self, *args, **kwargs)
+        return gate.denied(action, self, *args, **kwargs)
+    
+    cls.can = can
+    cls.cannot = cannot
+    return cls
