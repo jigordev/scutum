@@ -37,7 +37,7 @@ class UserPolicy(Policy)
 
 ### Checking Permissions
 
-Through the guard it is possible to check the permissions of registered policies.
+Through the gate it is possible to check the permissions of registered policies.
 
 ```python
 from scutum import Policy, gate
