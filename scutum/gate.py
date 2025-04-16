@@ -1,4 +1,4 @@
-from typing import Callable, Union, List, Any
+from typing import Callable, Union, List, Dict, Any, Optional
 from scutum.policy import Policy
 from scutum.response import Response
 from scutum.exceptions import AuthorizationException, ActionNotFoundException
@@ -6,13 +6,30 @@ from scutum.exceptions import AuthorizationException, ActionNotFoundException
 AuthorizationFunc = Callable[..., Union[Response, bool]]
 
 class Gate:
-    def __init__(self):
+    def __init__(
+            self,
+            actions: Optional[Dict[str, AuthorizationFunc]] = None,
+            policies: Optional[Dict[str, Policy]] = None
+        ):
         self._actions = set()
         self._policies = set()
         self._map_functions = {}
 
+        if actions:
+            for action, func in actions.items():
+                self._register_func(action, func)
+
+        if policies:
+            for name, policy in policies.items():
+                self._register_policy(name, policy)
+
     def has(self, action: str):
         return action in self._actions
+    
+    def clear(self):
+        self._actions.clear()
+        self._policies.clear()
+        self._map_functions.clear()
     
     def actions(self):
         return self._actions
@@ -27,24 +44,34 @@ class Gate:
                 self._map_functions[action] = func
         else:
             raise TypeError("func must be a callable")
+        
+    def _register_policy(self, name: str, policy: Policy):
+        if issubclass(policy, Policy):
+            if name not in self._policies:
+                actions = policy._to_actions()
+                for action, func in actions.items():
+                    self._register_func(f"{name}:{action}", func)
+                self._policies.add(name)
+        else:
+            raise TypeError("policy must be a Policy instance")
 
     def register(self, action: str):
         def decorator(func: AuthorizationFunc):
             self._register_func(action, func)
+            return func
         return decorator
+    
+    def add_action(self, action: str, func: Callable):
+        self._register_func(action, func)
     
     def policy(self, name):
         def decorator(policy: Policy):
-            if issubclass(policy, Policy):
-                if name not in self._policies:
-                    actions = policy._to_actions()
-                    for action, func in actions.items():
-                        self._register_func(f"{name}:{action}", func)
-            else:
-                raise TypeError("policy must be a Policy instance")
-            
+            self._register_policy(name, policy)
             return policy
         return decorator
+    
+    def add_policy(self, name, policy):
+        self._register_policy(name, policy)
     
     def remove(self, action: str):
         if action in self._actions:
