@@ -1,4 +1,4 @@
-from typing import Callable, Union, List, Any
+from typing import Callable, Union, List, Dict, Any, Optional
 from scutum.policy import Policy
 from scutum.response import Response
 from scutum.exceptions import AuthorizationException, ActionNotFoundException
@@ -6,10 +6,22 @@ from scutum.exceptions import AuthorizationException, ActionNotFoundException
 AuthorizationFunc = Callable[..., Union[Response, bool]]
 
 class Gate:
-    def __init__(self):
+    def __init__(
+            self,
+            actions: Optional[Dict[str, AuthorizationFunc]] = None,
+            policies: Optional[Dict[str, Policy]] = None
+        ):
         self._actions = set()
         self._policies = set()
         self._map_functions = {}
+
+        if actions:
+            for action, func in actions.items():
+                self._register_func(action, func)
+
+        if policies:
+            for name, policy in policies.items():
+                self._register_policy(name, policy)
 
     def has(self, action: str):
         return action in self._actions
