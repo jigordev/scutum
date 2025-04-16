@@ -10,6 +10,9 @@ setup(
     author_email="jigordev@gmail.com",
     url="https://github.com/jigordev/scutum",
     packages=find_packages(),
+    extras_require={
+        "flask": ["Flask>=2.0.0"]
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",
