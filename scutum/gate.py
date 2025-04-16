@@ -26,6 +26,11 @@ class Gate:
     def has(self, action: str):
         return action in self._actions
     
+    def clear(self):
+        self._actions.clear()
+        self._policies.clear()
+        self._map_functions.clear()
+    
     def actions(self):
         return self._actions
     
