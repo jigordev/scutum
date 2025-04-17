@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scutum"
+version = "0.1.0"
+description = "An authorization policies library inspired by Laravel's gates and policies."
+readme = "README.md"
+requires-python = ">=3.7"
+authors = [
+  { name = "jigordev", email = "jigordev@gmail.com" }
+]
+license = { text = "MIT" }
+keywords = ["authorization", "policies", "flask", "fastapi", "gates"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Web Environment",
+  "Framework :: Flask",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10"
+]
+
+[project.urls]
+Homepage = "https://github.com/jigordev/scutum"
+
+[project.optional-dependencies]
+flask = ["Flask>=2.0.0"]
