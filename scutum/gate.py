@@ -11,9 +11,8 @@ class Gate:
             actions: Optional[Dict[str, AuthorizationFunc]] = None,
             policies: Optional[Dict[str, Policy]] = None
         ):
+        self._scopes = {"default": dict()}
         self._actions = set()
-        self._policies = set()
-        self._map_functions = {}
 
         if actions:
             for action, func in actions.items():
@@ -25,35 +24,58 @@ class Gate:
 
     def has(self, action: str):
         return action in self._actions
+
+    def has_scope(self, name: str):
+        return name in self._scopes
     
     def clear(self):
+        self._scopes.clear()
+        self._scopes["default"] = dict()
         self._actions.clear()
-        self._policies.clear()
-        self._map_functions.clear()
     
     def actions(self):
-        return self._actions
+        return list(self._actions)
     
-    def policies(self):
-        return self._policies
+    def scopes(self):
+        return list(self._scopes.keys())
     
     def _register_func(self, action: str, func: AuthorizationFunc):
         if callable(func):
             if action not in self._actions:
                 self._actions.add(action)
-                self._map_functions[action] = func
+                if ":" in action:
+                    scope, action = action.split(":", 1)
+                    self._scopes[scope][action] = func
+                else:
+                    self._scopes["default"][action] = func
         else:
             raise TypeError("func must be a callable")
         
     def _register_policy(self, name: str, policy: Policy):
         if issubclass(policy, Policy):
-            if name not in self._policies:
+            if name not in self._scopes:
                 actions = policy._to_actions()
                 for action, func in actions.items():
                     self._register_func(f"{name}:{action}", func)
-                self._policies.add(name)
+            else:
+                raise KeyError(f"a scope named {name} alredy exists")
         else:
             raise TypeError("policy must be a Policy instance")
+        
+    def create_scope(self, name: str):
+        if name in self._scopes:
+            raise KeyError(f"a scope named {name} alredy exists")
+        self._scopes[name] = dict()
+
+    def _call_action(self, action: str, *args, **kwargs):
+        if action not in self._actions:
+            raise ActionNotFoundException(f"Action '{action}' not found")
+        
+        if ":" in action:
+            scope, action = action.split(":", 1)
+            return self._scopes[scope][action](*args, **kwargs)
+        else:
+            return self._scopes["default"][action](*args, **kwargs)
 
     def register(self, action: str):
         def decorator(func: AuthorizationFunc):
@@ -76,13 +98,21 @@ class Gate:
     def remove(self, action: str):
         if action in self._actions:
             self._actions.remove(action)
-            del self._map_functions[action]
+            if ":" in action:
+                scope, action = action.split(":", 1)
+                del self._scopes[scope][action]
+            else:
+                del self._scopes["default"][action]
+
+    def remove_scope(self, name: str):
+        if name in self._scopes:
+            for action in list(self._actions):
+                if action.startswith(f"{name}:"):
+                    self._actions.remove(action)
+            del self._scopes[name]
 
     def check(self, action: str, user: Any, *args, **kwargs) -> Union[Response, bool]:
-        if action not in self._actions:
-            raise ActionNotFoundException(f"Action '{action}' not found")
-        
-        result = self._map_functions[action](user, *args, **kwargs)
+        result = self._call_action(action, user, *args, **kwargs)
         if isinstance(result, Response):
             return result
         return bool(result)
