@@ -1,6 +1,6 @@
 from scutum import Gate
 from typing import Callable, Optional
-from flask import Flask, Response, request
+from flask import Flask, Response
 from functools import wraps
 
 class Scutum:
@@ -28,8 +28,9 @@ class Scutum:
     def gate(self):
         return self._gate
 
-    def set_user_resolver(self, resolver: Callable):
-        self._user_resolver = resolver
+    def user_resolver(self, func):
+        self._user_resolver = func
+        return self._user_resolver
 
     def _default_resolver(self, *args, **kwargs):
         raise NotImplementedError("User resolver function not implemented")
@@ -38,8 +39,8 @@ class Scutum:
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
-                user = self._user_resolver(request, *args, **kwargs)
-                if self._gate.denied(action, user, request):
+                user = self._user_resolver(*args, **kwargs)
+                if self._gate.denied(action, user, *args, **kwargs):
                     return self._response
                 return func(*args, **kwargs)
             return wrapper
@@ -49,8 +50,8 @@ class Scutum:
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
-                user = self._user_resolver(request, *args, **kwargs)
-                if self._gate.none(actions, user, request):
+                user = self._user_resolver(*args, **kwargs)
+                if self._gate.none(actions, user, *args, **kwargs):
                     return self._response
                 return func(*args, **kwargs)
             return wrapper
