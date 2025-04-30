@@ -1,22 +1,22 @@
-from typing import Callable, Any
-from scutum import Gate
+from typing import Any, Callable
 from fastapi import Depends, HTTPException
+from scutum import Gate
 
-class AuthConfig:
-    def __init__(self, gate: Gate = Gate(), get_current_user: Callable = None):
-        self.gate = gate
-        self.get_current_user = get_current_user
+def create_api_gate(user_resolver: Callable, *args, **kwargs):
+    gate = Gate(*args, **kwargs)
 
-auth_config = AuthConfig()
-
-def check_permission(action: str, gate: Gate = auth_config.gate, status=403, message="Unauthorized"):
-    def checker(
-        user: Any = Depends(lambda: auth_config.get_current_user()),
-        *args,
-        **kwargs
+    def authorized_user_factory(
+        action: str,
+        status: int = 403,
+        message: str = "Unauthorized",
+        *resolver_args,
+        **resolver_kwargs
     ):
-        if gate.denied(action, user, *args, **kwargs):
-            raise HTTPException(status_code=status, detail=message)
-        
-        return True
-    return checker
+        def dependency(user: Any = Depends(user_resolver)):
+            if gate.denied(action, user, *resolver_args, **resolver_kwargs):
+                raise HTTPException(status_code=status, detail=message)
+            return user
+        return dependency
+
+    gate.authorized_user = authorized_user_factory
+    return gate
