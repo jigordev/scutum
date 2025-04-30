@@ -11,7 +11,7 @@ class Gate:
             actions: Optional[Dict[str, AuthorizationFunc]] = None,
             policies: Optional[Dict[str, Policy]] = None
         ):
-        self._scopes = {"default": dict()}
+        self._scopes = {"default": {}}
         self._actions = set()
 
         if actions:
@@ -30,7 +30,7 @@ class Gate:
     
     def clear(self):
         self._scopes.clear()
-        self._scopes["default"] = dict()
+        self._scopes["default"] = {}
         self._actions.clear()
     
     def actions(self):
@@ -45,6 +45,8 @@ class Gate:
                 self._actions.add(action)
                 if ":" in action:
                     scope, action = action.split(":", 1)
+                    if not self.has_scope(scope):
+                        self._scopes[scope] = {}
                     self._scopes[scope][action] = func
                 else:
                     self._scopes["default"][action] = func
