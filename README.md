@@ -85,6 +85,13 @@ def update_user(authenticated_user, user)
     return Response.deny("This action is not authorized")
 ```
 
+## Extensions
+
+You can explore example projects demonstrating how to integrate this library with popular Python web frameworks:
+
+* **Flask Example**: [github.com/jigordev/flask-scutum-example](https://github.com/jigordev/flask-scutum-example)
+* **FastAPI Example**: [github.com/jigordev/fastapi-scutum-example](https://github.com/jigordev/fastapi-scutum-example)
+
 ## License
 
 MIT License
