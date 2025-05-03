@@ -11,7 +11,7 @@ class Gate:
             rules: Optional[Dict[str, Rule]] = None,
             policies: Optional[Dict[str, Policy]] = None
         ):
-        self._scope = Scope("default")
+        self._root = Scope("root")
         
         if rules:
             for rule, func in rules.items():
@@ -22,30 +22,30 @@ class Gate:
                 self._register_policy(name, policy)
 
     def has_rule(self, name: str):
-        return self._scope.has_rule(name)
+        return self._root.has_rule(name)
 
     def has_scope(self, name: str):
-        return self._scope.has_scope(name)
+        return self._root.has_scope(name)
     
     def clear(self):
-        self._scope = Scope("default")
+        self._root = Scope("root")
     
     def rules(self):
-        return self._scope._rules
+        return self._root._rules
     
     def scopes(self):
-        return self._scope._childrens
+        return self._root._childrens
     
     def _register_rule(self, name: str, rule: Rule):
         if not callable(rule):
             raise TypeError("Rule must be a callable")
-        self._scope.add_rule(name, rule)
+        self._root.add_rule(name, rule)
             
     def _register_policy(self, name: str, policy: Policy):
         if not isinstance(policy, type) or not issubclass(policy, Policy):
             raise TypeError("policy must be a Policy class (not an instance)")
 
-        if self._scope.has_scope(name):
+        if self._root.has_scope(name):
             raise KeyError(f"a scope named {name} alredy exists")
 
         rules = policy._to_rules()
@@ -53,12 +53,12 @@ class Gate:
             self._register_rule(f"{name}:{rule}", func)
         
     def add_scope(self, name: str, scope: Scope):
-        if self._scope.has_scope(name):
+        if self._root.has_scope(name):
             raise KeyError(f"A scope named {name} alredy exists")
-        self._scope.add_scope(name, scope)
+        self._root.add_scope(name, scope)
 
     def _call_rule(self, name: str, *args, **kwargs):
-        return self._scope.call(name, *args, **kwargs)
+        return self._root.call(name, *args, **kwargs)
 
     def rule(self, name: str):
         def decorator(rule: Rule):
@@ -67,7 +67,7 @@ class Gate:
         return decorator
     
     def add_rule(self, name: str, rule: Rule):
-        if self._scope.has_rule(name):
+        if self._root.has_rule(name):
             raise KeyError(f"A rule named {name} alredy exists")
         self._register_rule(name, rule)
     
@@ -81,10 +81,10 @@ class Gate:
         self._register_policy(name, policy)
     
     def remove_rule(self, name: str):
-        self._scope.remove_rule(name)
+        self._root.remove_rule(name)
 
     def remove_scope(self, name: str):
-        self._scope.remove_scope(name)
+        self._root.remove_scope(name)
 
     def check(self, rule: str, user: Any, *args, **kwargs) -> Union[Response, bool]:
         result = self._call_rule(rule, user, *args, **kwargs)
