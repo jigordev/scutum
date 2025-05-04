@@ -1,4 +1,6 @@
-from typing import Callable, Union
+from typing import Protocol, Union
 from scutum.response import Response
 
-Rule = Callable[..., Union[Response, bool]]
+class Rule(Protocol):
+    def __call__(self, *args, **kwargs) -> Union[Response, bool]:
+        ...
