@@ -1,25 +1,14 @@
-from typing import Union, List, Dict, Any, Optional
+import asyncio
+from typing import Union, List, Any
 from scutum.types import Rule
-from scutum.scope import Scope
+from scutum.scope import Scope, AsyncScope
 from scutum.policy import Policy
 from scutum.response import Response
 from scutum.exceptions import AuthorizationException
 
 class Gate:
-    def __init__(
-            self,
-            rules: Optional[Dict[str, Rule]] = None,
-            policies: Optional[Dict[str, Policy]] = None
-        ):
+    def __init__(self):
         self._root = Scope("root")
-        
-        if rules:
-            for rule, func in rules.items():
-                self._register_rule(rule, func)
-
-        if policies:
-            for name, policy in policies.items():
-                self._register_policy(name, policy)
 
     def has_rule(self, name: str):
         return self._root.has_rule(name)
@@ -117,3 +106,107 @@ class Gate:
 
     def none(self, rules: List[str], user: Any, *args, **kwargs):
         return not self.any(rules, user, *args, **kwargs)
+
+class AsyncGate:
+    def __init__(self):
+        self._root = AsyncScope("root")
+
+    async def has_rule(self, name: str):
+        return await self._root.has_rule(name)
+
+    async def has_scope(self, name: str):
+        return await self._root.has_scope(name)
+
+    def clear(self):
+        self._root = AsyncScope("root")
+
+    def rules(self):
+        return self._root._rules
+
+    def scopes(self):
+        return self._root._childrens
+
+    async def _register_rule(self, name: str, rule: Rule):
+        if not callable(rule):
+            raise TypeError("Rule must be a callable")
+        await self._root.add_rule(name, rule)
+
+    async def _register_policy(self, name: str, policy: Policy):
+        if not isinstance(policy, type) or not issubclass(policy, Policy):
+            raise TypeError("policy must be a Policy class (not an instance)")
+        await self._ensure_policy_registration(name, policy)
+
+    async def _ensure_policy_registration(self, name: str, policy: Policy):
+        if await self._root.has_scope(name):
+            raise KeyError(f"A scope named {name} already exists")
+        rules = policy._to_rules()
+        for rule, func in rules.items():
+            await self._root.add_rule(f"{name}:{rule}", func)
+
+    async def add_scope(self, name: str, scope: AsyncScope):
+        if await self._root.has_scope(name):
+            raise KeyError(f"A scope named {name} already exists")
+        await self._root.add_scope(name, scope)
+
+    async def _call_rule(self, name: str, *args, **kwargs):
+        return await self._root.call(name, *args, **kwargs)
+
+    def rule(self, name: str):
+        async def decorator(rule: Rule):
+            await self._register_rule(name, rule)
+            return rule
+        return decorator
+
+    async def add_rule(self, name: str, rule: Rule):
+        if await self._root.has_rule(name):
+            raise KeyError(f"A rule named {name} already exists")
+        await self._register_rule(name, rule)
+
+    def policy(self, name: str):
+        def decorator(policy: Policy):
+            self._register_policy(name, policy)
+            return policy
+        return decorator
+
+    async def add_policy(self, name: str, policy: Policy):
+        await self._register_policy(name, policy)
+
+    async def remove_rule(self, name: str):
+        await self._root.remove_rule(name)
+
+    async def remove_scope(self, name: str):
+        await self._root.remove_scope(name)
+
+    async def check(self, rule: str, user: Any, *args, **kwargs) -> Union[Response, bool]:
+        result = await self._call_rule(rule, user, *args, **kwargs)
+        if isinstance(result, Response):
+            return result
+        return bool(result)
+
+    async def allowed(self, rule: str, user: Any, *args, **kwargs) -> bool:
+        response = await self.check(rule, user, *args, **kwargs)
+        if isinstance(response, Response):
+            return response.allowed
+        return response
+
+    async def denied(self, rule: str, user: Any, *args, **kwargs) -> bool:
+        response = await self.check(rule, user, *args, **kwargs)
+        if isinstance(response, Response):
+            return not response.allowed
+        return not response
+
+    async def authorize(self, rule: str, user: Any, *args, **kwargs) -> None:
+        response = await self.check(rule, user, *args, **kwargs)
+        if isinstance(response, Response):
+            response.authorize()
+        elif isinstance(response, bool) and not response:
+            raise AuthorizationException()
+
+    async def any(self, rules: List[str], user: Any, *args, **kwargs):
+        results = await asyncio.gather(
+            *[self.allowed(rule, user, *args, **kwargs) for rule in rules]
+        )
+        return any(results)
+
+    async def none(self, rules: List[str], user: Any, *args, **kwargs):
+        return not await self.any(rules, user, *args, **kwargs)
