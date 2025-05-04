@@ -30,8 +30,8 @@ A policy is a named class whose methods are actions that will be registered alon
 from scutum import Policy, gate
 
 @gate.policy("user")
-class UserPolicy(Policy)
-    def create(self, user, *args, **kwargs)
+class UserPolicy(Policy):
+    def create(self, user, *args, **kwargs):
         return user.is_admin
 ```
 
@@ -43,11 +43,11 @@ Through the guard it is possible to check the permissions of registered policies
 from scutum import Policy, gate
 
 @gate.policy("user")
-class UserPolicy(Policy)
-    def create(self, user, *args, **kwargs)
+class UserPolicy(Policy):
+    def create(self, user, *args, **kwargs):
         return user.is_admin
 
-    def delete(self, user, *args, **kwargs)
+    def delete(self, user, *args, **kwargs):
         return user.is_admin
 
 def create_user():
@@ -78,7 +78,7 @@ Responses are classes that can be returned within an action or policy for an all
 from scutum import Response, gate
 
 @guard.register("update")
-def update_user(authenticated_user, user)
+def update_user(authenticated_user, user):
     if authenticated_user.is_admin:
         return Response.allow("User authorized")
 
