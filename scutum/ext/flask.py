@@ -35,23 +35,23 @@ class Scutum:
     def _default_resolver(self, *args, **kwargs):
         raise NotImplementedError("User resolver function not implemented")
 
-    def authorized(self, action: str):
+    def authorized(self, rule: str):
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
                 user = self._user_resolver(*args, **kwargs)
-                if self._gate.denied(action, user, *args, **kwargs):
+                if self._gate.denied(rule, user, *args, **kwargs):
                     return self._response
                 return func(*args, **kwargs)
             return wrapper
         return decorator
     
-    def authorized_actions(self, actions: list[str]):
+    def authorized_rules(self, rules: list[str]):
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
                 user = self._user_resolver(*args, **kwargs)
-                if self._gate.none(actions, user, *args, **kwargs):
+                if self._gate.none(rules, user, *args, **kwargs):
                     return self._response
                 return func(*args, **kwargs)
             return wrapper
