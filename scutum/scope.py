@@ -13,10 +13,6 @@ class BaseScope(ABC):
         self._children: Dict[str, "BaseScope"] = {}
         self._parent: Optional["BaseScope"] = None
 
-    @abstractmethod
-    def debug(self, indent: int = 0):
-        ...
-
 class ScopeResolverMixin:
     def _resolve_scope(self, path: str):
         scopes = path.split(":")
