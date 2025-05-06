@@ -23,7 +23,7 @@ class Gate:
         return dict(self._root._rules)
     
     def scopes(self):
-        return self._root._childrens
+        return self._root._children
     
     def _register_rule(self, name: str, rule: Rule):
         if not callable(rule):
@@ -146,7 +146,7 @@ class AsyncGate:
         return dict(self._root._rules)
 
     def scopes(self):
-        return self._root._childrens
+        return self._root._children
 
     async def _register_rule(self, name: str, rule: Rule):
         if not callable(rule):
