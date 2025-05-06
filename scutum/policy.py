@@ -1,31 +1,32 @@
+from functools import wraps
+
 def _get_method(obj, method):
+    @wraps(method)
     def get_method(*args, **kwargs):
         return method(obj, *args, **kwargs)
     return get_method
 
-class Policy:
+def _get_async_method(obj, method):
+    @wraps(method)
+    async def get_method(*args, **kwargs):
+        return await method(obj, *args, **kwargs)
+    return get_method
+
+class BasePolicy:
+    _method_wrapper = staticmethod(_get_method)
+
     @classmethod
     def _to_actions(cls):
         obj = cls()
 
         actions = {}
-        for name in dir(cls):
-            value = getattr(cls, name)
+        for name, value in cls.__dict__.items():
             if callable(value) and not name.startswith("_"):
-                actions[name] = _get_method(obj, value)
+                actions[name] = cls._method_wrapper(obj, value)
         return actions
+    
+class Policy(BasePolicy):
+    _method_wrapper = staticmethod(_get_method)
 
-    def view(self, user, *args, **kwargs):
-        return True
-    
-    def view_many(self, user, *args, **kwargs):
-        return True
-    
-    def create(self, user, *args, **kwargs):
-        return True
-    
-    def update(self, user, *args, **kwargs):
-        return True
-    
-    def delete(self, user, *args, **kwargs):
-        return True
+class AsyncPolicy(BasePolicy):
+    _method_wrapper = staticmethod(_get_async_method)

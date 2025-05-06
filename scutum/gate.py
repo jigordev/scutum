@@ -2,7 +2,7 @@ import asyncio
 from typing import Union, List, Any
 from scutum.types import Rule
 from scutum.scope import Scope, AsyncScope
-from scutum.policy import Policy
+from scutum.policy import Policy, AsyncPolicy
 from scutum.response import Response
 from scutum.exceptions import AuthorizationException
 
@@ -131,12 +131,12 @@ class AsyncGate:
             raise TypeError("Rule must be a callable")
         await self._root.add_rule(name, rule)
 
-    async def _register_policy(self, name: str, policy: Policy):
-        if not isinstance(policy, type) or not issubclass(policy, Policy):
-            raise TypeError("policy must be a Policy class (not an instance)")
+    async def _register_policy(self, name: str, policy: AsyncPolicy):
+        if not isinstance(policy, type) or not issubclass(policy, AsyncPolicy):
+            raise TypeError("policy must be a AsyncPolicy class (not an instance)")
         await self._ensure_policy_registration(name, policy)
 
-    async def _ensure_policy_registration(self, name: str, policy: Policy):
+    async def _ensure_policy_registration(self, name: str, policy: AsyncPolicy):
         if await self._root.has_scope(name):
             raise KeyError(f"A scope named {name} already exists")
         rules = policy._to_rules()
@@ -163,12 +163,12 @@ class AsyncGate:
         await self._register_rule(name, rule)
 
     def policy(self, name: str):
-        def decorator(policy: Policy):
+        def decorator(policy: AsyncPolicy):
             self._register_policy(name, policy)
             return policy
         return decorator
 
-    async def add_policy(self, name: str, policy: Policy):
+    async def add_policy(self, name: str, policy: AsyncPolicy):
         await self._register_policy(name, policy)
 
     async def remove_rule(self, name: str):
