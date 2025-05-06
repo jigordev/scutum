@@ -16,7 +16,7 @@ class BasePolicy:
     _method_wrapper = staticmethod(_get_method)
 
     @classmethod
-    def _to_actions(cls):
+    def _to_rules(cls):
         obj = cls()
 
         actions = {}
