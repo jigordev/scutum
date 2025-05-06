@@ -1,5 +1,5 @@
 import asyncio
-from typing import Union, List, Any
+from typing import Union, List, Any, Tuple
 from scutum.types import Rule
 from scutum.scope import Scope, AsyncScope
 from scutum.policy import Policy, AsyncPolicy
@@ -40,14 +40,20 @@ class Gate:
         rules = policy._to_rules()
         for rule, func in rules.items():
             self._register_rule(f"{name}:{rule}", func)
+
+    def _call_rule(self, name: str, *args, **kwargs):
+        return self._root.call(name, *args, **kwargs)
+
+    def scope(self, name: str):
+        def decorator(scope: Scope):
+            self.add_scope(name, scope)
+            return scope
+        return decorator
         
     def add_scope(self, name: str, scope: Scope):
         if self._root.has_scope(name):
             raise KeyError(f"A scope named {name} already exists")
         self._root.add_scope(name, scope)
-
-    def _call_rule(self, name: str, *args, **kwargs):
-        return self._root.call(name, *args, **kwargs)
 
     def rule(self, name: str):
         def decorator(rule: Rule):
@@ -110,6 +116,22 @@ class Gate:
 class AsyncGate:
     def __init__(self):
         self._root = AsyncScope("root")
+        self._pending_rules: List[Tuple[str, Rule]] = []
+        self._pending_scopes: List[Tuple[str, AsyncScope]] = []
+        self._pending_policies: List[Tuple[str, AsyncPolicy]] = []
+
+    async def setup(self):
+        for name, rule in self._pending_rules:
+            await self._register_rule(name, rule)
+        self._pending_rules.clear()
+
+        for name, scope in self._pending_scopes:
+            await self.add_scope(name, scope)
+        self._pending_scopes.clear()
+
+        for name, policy in self._pending_policies:
+            await self._register_policy(name, policy)
+        self._pending_policies.clear()
 
     async def has_rule(self, name: str):
         return await self._root.has_rule(name)
@@ -143,17 +165,23 @@ class AsyncGate:
         for rule, func in rules.items():
             await self._root.add_rule(f"{name}:{rule}", func)
 
+    async def _call_rule(self, name: str, *args, **kwargs):
+        return await self._root.call(name, *args, **kwargs)
+    
+    def scope(self, name: str):
+        def decorator(scope: AsyncScope):
+            self._pending_scopes.append((name, scope))
+            return scope
+        return decorator
+
     async def add_scope(self, name: str, scope: AsyncScope):
         if await self._root.has_scope(name):
             raise KeyError(f"A scope named {name} already exists")
         await self._root.add_scope(name, scope)
 
-    async def _call_rule(self, name: str, *args, **kwargs):
-        return await self._root.call(name, *args, **kwargs)
-
     def rule(self, name: str):
-        async def decorator(rule: Rule):
-            await self._register_rule(name, rule)
+        def decorator(rule: Rule):
+            self._pending_rules.append((name, rule))
             return rule
         return decorator
 
@@ -164,7 +192,7 @@ class AsyncGate:
 
     def policy(self, name: str):
         def decorator(policy: AsyncPolicy):
-            self._register_policy(name, policy)
+            self._pending_policies.append((name, policy))
             return policy
         return decorator
 
