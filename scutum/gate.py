@@ -20,7 +20,7 @@ class Gate:
         self._root = Scope("root")
     
     def rules(self):
-        return self._root._rules
+        return dict(self._root._rules)
     
     def scopes(self):
         return self._root._childrens
@@ -143,7 +143,7 @@ class AsyncGate:
         self._root = AsyncScope("root")
 
     def rules(self):
-        return self._root._rules
+        return dict(self._root._rules)
 
     def scopes(self):
         return self._root._childrens
