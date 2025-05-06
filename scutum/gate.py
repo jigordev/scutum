@@ -35,7 +35,7 @@ class Gate:
             raise TypeError("policy must be a Policy class (not an instance)")
 
         if self._root.has_scope(name):
-            raise KeyError(f"a scope named {name} alredy exists")
+            raise KeyError(f"a scope named {name} already exists")
 
         rules = policy._to_rules()
         for rule, func in rules.items():
@@ -43,7 +43,7 @@ class Gate:
         
     def add_scope(self, name: str, scope: Scope):
         if self._root.has_scope(name):
-            raise KeyError(f"A scope named {name} alredy exists")
+            raise KeyError(f"A scope named {name} already exists")
         self._root.add_scope(name, scope)
 
     def _call_rule(self, name: str, *args, **kwargs):
@@ -57,7 +57,7 @@ class Gate:
     
     def add_rule(self, name: str, rule: Rule):
         if self._root.has_rule(name):
-            raise KeyError(f"A rule named {name} alredy exists")
+            raise KeyError(f"A rule named {name} already exists")
         self._register_rule(name, rule)
     
     def policy(self, name):
