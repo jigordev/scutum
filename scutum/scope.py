@@ -1,3 +1,4 @@
+import inspect
 from asyncio import Lock
 from threading import RLock
 from abc import ABC, abstractmethod
@@ -9,7 +10,7 @@ class BaseScope(ABC):
     def __init__(self, name: str):
         self.name = name
         self._rules: Dict[str, Rule] = {}
-        self._childrens: Dict[str, "BaseScope"] = {}
+        self._children: Dict[str, "BaseScope"] = {}
         self._parent: Optional["BaseScope"] = None
 
     @abstractmethod
@@ -21,9 +22,9 @@ class ScopeResolverMixin:
         scopes = path.split(":")
         current = self
         for name in scopes:
-            if name not in current._childrens:
+            if name not in current._children:
                 raise ScopeNotFoundException(f"Scope '{name}' not found")
-            current = current._childrens[name]
+            current = current._children[name]
         return current
 
     def _resolve_rule(self, path: str) -> Rule:
@@ -44,7 +45,7 @@ class ScopeResolverMixin:
         print(f"{prefix}Scope: {self.name}")
         for rule_name in self._rules:
             print(f"{prefix}  Rule: {rule_name}")
-        for child in self._childrens.values():
+        for child in self._children.values():
             child.debug(indent + 1)
 
 class Scope(BaseScope, ScopeResolverMixin):
@@ -87,18 +88,18 @@ class Scope(BaseScope, ScopeResolverMixin):
     def add_scope(self, name: str, scope: "Scope"):
         with self._lock:
             parent_scope, child_name = self._resolve_path(name)
-            parent_scope._childrens[child_name] = scope
+            parent_scope._children[child_name] = scope
             scope._parent = parent_scope
 
     def remove_scope(self, name: str):
         with self._lock:
             parent_scope, child_name = self._resolve_path(name)
-            if child_name not in parent_scope._childrens:
+            if child_name not in parent_scope._children:
                 raise ScopeNotFoundException(f"Scope '{child_name}' not found")
-            del parent_scope._childrens[child_name]
+            del parent_scope._children[child_name]
 
     def call(self, name: str, *args, **kwargs):
-        rule = self.get_rule(name)
+        rule = self._resolve_rule(name)
         return rule(*args, **kwargs)
 
 class AsyncScope(BaseScope, ScopeResolverMixin):
@@ -141,16 +142,19 @@ class AsyncScope(BaseScope, ScopeResolverMixin):
     async def add_scope(self, name: str, scope: "AsyncScope"):
         async with self._lock:
             parent_scope, child_name = self._resolve_path(name)
-            parent_scope._childrens[child_name] = scope
+            parent_scope._children[child_name] = scope
             scope._parent = parent_scope
 
     async def remove_scope(self, name: str):
         async with self._lock:
             parent_scope, child_name = self._resolve_path(name)
-            if child_name not in parent_scope._childrens:
+            if child_name not in parent_scope._children:
                 raise ScopeNotFoundException(f"Scope '{child_name}' not found")
-            del parent_scope._childrens[child_name]
+            del parent_scope._children[child_name]
 
     async def call(self, name: str, *args, **kwargs):
-        rule = await self.get_rule(name)
-        return rule(*args, **kwargs)
+        rule = self._resolve_rule(name)
+        result = rule(*args, **kwargs)
+        if inspect.isawaitable(result):
+            result = await result
+        return result
