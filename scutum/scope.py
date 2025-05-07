@@ -1,7 +1,7 @@
 import inspect
 from asyncio import Lock
 from threading import RLock
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Dict, Optional
 from scutum.types import Rule
 from scutum.exceptions import RuleNotFoundException, ScopeNotFoundException
@@ -36,13 +36,14 @@ class ScopeResolverMixin:
         scope_path = ":".join(parts[:-1])
         return self._resolve_scope(scope_path), parts[-1]
 
-    def debug(self, indent: int = 0):
+    def debug(self, indent: int = 0) -> str:
         prefix = "  " * indent
-        print(f"{prefix}Scope: {self.name}")
+        lines = [f"{prefix}Scope: {self.name}"]
         for rule_name in self._rules:
-            print(f"{prefix}  Rule: {rule_name}")
+            lines.append(f"{prefix}  Rule: {rule_name}")
         for child in self._children.values():
-            child.debug(indent + 1)
+            lines.append(child.debug(indent + 1))
+        return "\n".join(lines)
 
 class Scope(BaseScope, ScopeResolverMixin):
     def __init__(self, name: str, lock: Optional[RLock] = None):
