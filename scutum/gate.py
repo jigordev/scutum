@@ -23,7 +23,7 @@ class Gate:
         return dict(self._root._rules)
     
     def scopes(self):
-        return self._root._childrens
+        return self._root._children
     
     def _register_rule(self, name: str, rule: Rule):
         if not callable(rule):
@@ -33,13 +33,13 @@ class Gate:
     def _register_policy(self, name: str, policy: Policy):
         if not isinstance(policy, type) or not issubclass(policy, Policy):
             raise TypeError("policy must be a Policy class (not an instance)")
+        self._ensure_policy_registration(name, policy)
 
+    def _ensure_policy_registration(self, name: str, policy: Policy):
         if self._root.has_scope(name):
-            raise KeyError(f"a scope named {name} already exists")
-
-        rules = policy._to_rules()
-        for rule, func in rules.items():
-            self._register_rule(f"{name}:{rule}", func)
+            raise KeyError(f"A scope named {name} already exists")
+        scope = policy._to_scope(name)
+        self._root.add_scope(name, scope)
 
     def _call_rule(self, name: str, *args, **kwargs):
         return self._root.call(name, *args, **kwargs)
@@ -146,7 +146,7 @@ class AsyncGate:
         return dict(self._root._rules)
 
     def scopes(self):
-        return self._root._childrens
+        return self._root._children
 
     async def _register_rule(self, name: str, rule: Rule):
         if not callable(rule):
@@ -161,9 +161,8 @@ class AsyncGate:
     async def _ensure_policy_registration(self, name: str, policy: AsyncPolicy):
         if await self._root.has_scope(name):
             raise KeyError(f"A scope named {name} already exists")
-        rules = policy._to_rules()
-        for rule, func in rules.items():
-            await self._root.add_rule(f"{name}:{rule}", func)
+        scope = policy._to_scope(name)
+        await self._root.add_scope(name, await scope)
 
     async def _call_rule(self, name: str, *args, **kwargs):
         return await self._root.call(name, *args, **kwargs)
