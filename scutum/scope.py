@@ -15,6 +15,9 @@ class BaseScope(ABC):
 
 class ScopeResolverMixin:
     def _resolve_scope(self, path: str):
+        if not path or "::" in path or any(part == "" for part in path.split(":")):
+            raise ValueError(f"Invalid path: '{path}'")
+        
         scopes = path.split(":")
         current = self
         for name in scopes:
@@ -30,6 +33,9 @@ class ScopeResolverMixin:
         return scope._rules[rule_name]
 
     def _resolve_path(self, path: str):
+        if not path or "::" in path or any(part == "" for part in path.split(":")):
+            raise ValueError(f"Invalid path: '{path}'")
+        
         parts = path.split(":")
         if len(parts) == 1:
             return self, parts[0]
