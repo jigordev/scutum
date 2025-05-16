@@ -119,19 +119,21 @@ class AsyncGate:
         self._pending_rules: List[Tuple[str, Rule]] = []
         self._pending_scopes: List[Tuple[str, AsyncScope]] = []
         self._pending_policies: List[Tuple[str, AsyncPolicy]] = []
+        self._lock = asyncio.Lock()
 
     async def setup(self):
-        for name, rule in self._pending_rules:
-            await self._register_rule(name, rule)
-        self._pending_rules.clear()
+        async with self._lock:
+            for name, rule in self._pending_rules:
+                await self._register_rule(name, rule)
+            self._pending_rules.clear()
 
-        for name, scope in self._pending_scopes:
-            await self.add_scope(name, scope)
-        self._pending_scopes.clear()
+            for name, scope in self._pending_scopes:
+                await self.add_scope(name, scope)
+            self._pending_scopes.clear()
 
-        for name, policy in self._pending_policies:
-            await self._register_policy(name, policy)
-        self._pending_policies.clear()
+            for name, policy in self._pending_policies:
+                await self._register_policy(name, policy)
+            self._pending_policies.clear()
 
     async def has_rule(self, name: str):
         return await self._root.has_rule(name)
