@@ -121,7 +121,7 @@ class Scope(BaseScope, ScopeResolverMixin):
             if child_name not in parent_scope._children:
                 raise ScopeNotFoundException(f"Scope '{child_name}' not found")
             child_scope = parent_scope._children[child_name]
-            child_scope.parent = None
+            child_scope._parent = None
             del parent_scope._children[child_name]
 
     def call(self, name: str, *args, **kwargs) -> Union[Response, bool]:
@@ -185,6 +185,8 @@ class AsyncScope(BaseScope, ScopeResolverMixin):
             parent_scope, child_name = self._resolve_path(name)
             if child_name not in parent_scope._children:
                 raise ScopeNotFoundException(f"Scope '{child_name}' not found")
+            child_scope = parent_scope._children[child_name]
+            child_scope._parent = None
             del parent_scope._children[child_name]
 
     async def call(self, name: str, *args, **kwargs) -> Union[Response, bool]:
