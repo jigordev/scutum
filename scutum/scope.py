@@ -2,8 +2,8 @@ import inspect
 from asyncio import Lock
 from threading import RLock
 from abc import ABC
-from typing import Dict, Optional
-from scutum.types import Rule
+from typing import Dict, Optional, Union
+from scutum.types import Rule, Response
 from scutum.exceptions import RuleNotFoundException, ScopeNotFoundException
 
 class BaseScope(ABC):
@@ -107,7 +107,7 @@ class Scope(BaseScope, ScopeResolverMixin):
             child_scope.parent = None
             del parent_scope._children[child_name]
 
-    def call(self, name: str, *args, **kwargs):
+    def call(self, name: str, *args, **kwargs) -> Union[Response, bool]:
         with self._lock:
             rule = self._resolve_rule(name)
             return rule(*args, **kwargs)
@@ -166,7 +166,7 @@ class AsyncScope(BaseScope, ScopeResolverMixin):
                 raise ScopeNotFoundException(f"Scope '{child_name}' not found")
             del parent_scope._children[child_name]
 
-    async def call(self, name: str, *args, **kwargs):
+    async def call(self, name: str, *args, **kwargs) -> Union[Response, bool]:
         async with self._lock:
             rule = self._resolve_rule(name)
             result = rule(*args, **kwargs)
