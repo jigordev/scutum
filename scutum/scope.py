@@ -2,8 +2,9 @@ import inspect
 from asyncio import Lock
 from threading import RLock
 from abc import ABC
-from typing import Dict, Optional
-from scutum.types import Rule
+from functools import lru_cache
+from typing import Dict, Optional, Union
+from scutum.types import Rule, Response
 from scutum.exceptions import RuleNotFoundException, ScopeNotFoundException
 
 class BaseScope(ABC):
@@ -14,7 +15,22 @@ class BaseScope(ABC):
         self._parent: Optional["BaseScope"] = None
 
 class ScopeResolverMixin:
+    @lru_cache(maxsize=1024)
+    def _resolve_scope_cached(self, path: str):
+        return self._resolve_scope(path)
+
+    @lru_cache(maxsize=1024)
+    def _resolve_rule_cached(self, path: str):
+        return self._resolve_rule(path)
+
+    def _invalidate_cache(self):
+        self._resolve_scope_cached.cache_clear()
+        self._resolve_rule_cached.cache_clear()
+    
     def _resolve_scope(self, path: str):
+        if not path or "::" in path or any(part == "" for part in path.split(":")):
+            raise ValueError(f"Invalid path: '{path}'")
+        
         scopes = path.split(":")
         current = self
         for name in scopes:
@@ -30,6 +46,9 @@ class ScopeResolverMixin:
         return scope._rules[rule_name]
 
     def _resolve_path(self, path: str):
+        if not path or "::" in path or any(part == "" for part in path.split(":")):
+            raise ValueError(f"Invalid path: '{path}'")
+        
         parts = path.split(":")
         if len(parts) == 1:
             return self, parts[0]
@@ -51,53 +70,64 @@ class Scope(BaseScope, ScopeResolverMixin):
         self._lock: RLock = lock or RLock()
 
     def has_rule(self, name: str) -> bool:
-        try:
-            self._resolve_rule(name)
-            return True
-        except RuleNotFoundException:
-            return False
+        with self._lock:
+            try:
+                self._resolve_rule_cached(name)
+                return True
+            except RuleNotFoundException:
+                return False
     
     def get_rule(self, name: str) -> Rule:
-        return self._resolve_rule(name)
+        with self._lock:
+            return self._resolve_rule_cached(name)
 
     def add_rule(self, name: str, rule: Rule):
         with self._lock:
+            self._invalidate_cache()
             scope, rule_name = self._resolve_path(name)
             scope._rules[rule_name] = rule
 
     def remove_rule(self, name: str):
         with self._lock:
+            self._invalidate_cache()
             scope, rule_name = self._resolve_path(name)
             if rule_name not in scope._rules:
                 raise RuleNotFoundException(f"Rule '{rule_name}' not found")
             del scope._rules[rule_name]
 
     def has_scope(self, name: str) -> bool:
-        try:
-            self._resolve_scope(name)
-            return True
-        except ScopeNotFoundException:
-            return False
+        with self._lock:
+            try:
+                self._resolve_scope_cached(name)
+                return True
+            except ScopeNotFoundException:
+                return False
 
     def get_scope(self, name: str) -> "Scope":
-        return self._resolve_scope(name)
+        with self._lock:
+            return self._resolve_scope_cached(name)
 
     def add_scope(self, name: str, scope: "Scope"):
         with self._lock:
+            self._invalidate_cache()
             parent_scope, child_name = self._resolve_path(name)
             parent_scope._children[child_name] = scope
             scope._parent = parent_scope
 
     def remove_scope(self, name: str):
         with self._lock:
+            self._invalidate_cache()
             parent_scope, child_name = self._resolve_path(name)
             if child_name not in parent_scope._children:
                 raise ScopeNotFoundException(f"Scope '{child_name}' not found")
+            child_scope = parent_scope._children[child_name]
+            child_scope._parent = None
             del parent_scope._children[child_name]
 
-    def call(self, name: str, *args, **kwargs):
-        rule = self._resolve_rule(name)
-        return rule(*args, **kwargs)
+    def call(self, name: str, *args, **kwargs) -> Union[Response, bool]:
+        with self._lock:
+            rule = self._resolve_rule_cached(name)
+            return rule(*args, **kwargs)
 
 class AsyncScope(BaseScope, ScopeResolverMixin):
     def __init__(self, name: str, lock: Optional[Lock] = None):
@@ -105,53 +135,64 @@ class AsyncScope(BaseScope, ScopeResolverMixin):
         self._lock: Lock = lock or Lock()
 
     async def has_rule(self, name: str) -> bool:
-        try:
-            self._resolve_rule(name)
-            return True
-        except RuleNotFoundException:
-            return False
+        async with self._lock:
+            try:
+                self._resolve_rule_cached(name)
+                return True
+            except RuleNotFoundException:
+                return False
 
     async def get_rule(self, name: str) -> Rule:
-        return self._resolve_rule(name)
+        async with self._lock:
+            return self._resolve_rule_cached(name)
 
     async def add_rule(self, name: str, rule: Rule):
         async with self._lock:
+            self._invalidate_cache()
             scope, rule_name = self._resolve_path(name)
             scope._rules[rule_name] = rule
 
     async def remove_rule(self, name: str):
         async with self._lock:
+            self._invalidate_cache()
             scope, rule_name = self._resolve_path(name)
             if rule_name not in scope._rules:
                 raise RuleNotFoundException(f"Rule '{rule_name}' not found")
             del scope._rules[rule_name]
 
     async def has_scope(self, name: str) -> bool:
-        try:
-            self._resolve_scope(name)
-            return True
-        except ScopeNotFoundException:
-            return False
+        async with self._lock:
+            try:
+                self._resolve_scope_cached(name)
+                return True
+            except ScopeNotFoundException:
+                return False
 
     async def get_scope(self, name: str) -> "AsyncScope":
-        return self._resolve_scope(name)
+        async with self._lock:
+            return self._resolve_scope_cached(name)
 
     async def add_scope(self, name: str, scope: "AsyncScope"):
         async with self._lock:
+            self._invalidate_cache()
             parent_scope, child_name = self._resolve_path(name)
             parent_scope._children[child_name] = scope
             scope._parent = parent_scope
 
     async def remove_scope(self, name: str):
         async with self._lock:
+            self._invalidate_cache()
             parent_scope, child_name = self._resolve_path(name)
             if child_name not in parent_scope._children:
                 raise ScopeNotFoundException(f"Scope '{child_name}' not found")
+            child_scope = parent_scope._children[child_name]
+            child_scope._parent = None
             del parent_scope._children[child_name]
 
-    async def call(self, name: str, *args, **kwargs):
-        rule = self._resolve_rule(name)
-        result = rule(*args, **kwargs)
-        if inspect.isawaitable(result):
-            result = await result
-        return result
+    async def call(self, name: str, *args, **kwargs) -> Union[Response, bool]:
+        async with self._lock:
+            rule = self._resolve_rule_cached(name)
+            result = rule(*args, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+            return result
