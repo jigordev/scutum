@@ -51,14 +51,16 @@ class Scope(BaseScope, ScopeResolverMixin):
         self._lock: RLock = lock or RLock()
 
     def has_rule(self, name: str) -> bool:
-        try:
-            self._resolve_rule(name)
-            return True
-        except RuleNotFoundException:
-            return False
+        with self._lock:
+            try:
+                self._resolve_rule(name)
+                return True
+            except RuleNotFoundException:
+                return False
     
     def get_rule(self, name: str) -> Rule:
-        return self._resolve_rule(name)
+        with self._lock:
+            return self._resolve_rule(name)
 
     def add_rule(self, name: str, rule: Rule):
         with self._lock:
@@ -73,14 +75,16 @@ class Scope(BaseScope, ScopeResolverMixin):
             del scope._rules[rule_name]
 
     def has_scope(self, name: str) -> bool:
-        try:
-            self._resolve_scope(name)
-            return True
-        except ScopeNotFoundException:
-            return False
+        with self._lock:
+            try:
+                self._resolve_scope(name)
+                return True
+            except ScopeNotFoundException:
+                return False
 
     def get_scope(self, name: str) -> "Scope":
-        return self._resolve_scope(name)
+        with self._lock:
+            return self._resolve_scope(name)
 
     def add_scope(self, name: str, scope: "Scope"):
         with self._lock:
@@ -96,8 +100,9 @@ class Scope(BaseScope, ScopeResolverMixin):
             del parent_scope._children[child_name]
 
     def call(self, name: str, *args, **kwargs):
-        rule = self._resolve_rule(name)
-        return rule(*args, **kwargs)
+        with self._lock:
+            rule = self._resolve_rule(name)
+            return rule(*args, **kwargs)
 
 class AsyncScope(BaseScope, ScopeResolverMixin):
     def __init__(self, name: str, lock: Optional[Lock] = None):
@@ -105,14 +110,16 @@ class AsyncScope(BaseScope, ScopeResolverMixin):
         self._lock: Lock = lock or Lock()
 
     async def has_rule(self, name: str) -> bool:
-        try:
-            self._resolve_rule(name)
-            return True
-        except RuleNotFoundException:
-            return False
+        async with self._lock:
+            try:
+                self._resolve_rule(name)
+                return True
+            except RuleNotFoundException:
+                return False
 
     async def get_rule(self, name: str) -> Rule:
-        return self._resolve_rule(name)
+        async with self._lock:
+            return self._resolve_rule(name)
 
     async def add_rule(self, name: str, rule: Rule):
         async with self._lock:
@@ -127,14 +134,16 @@ class AsyncScope(BaseScope, ScopeResolverMixin):
             del scope._rules[rule_name]
 
     async def has_scope(self, name: str) -> bool:
-        try:
-            self._resolve_scope(name)
-            return True
-        except ScopeNotFoundException:
-            return False
+        async with self._lock:
+            try:
+                self._resolve_scope(name)
+                return True
+            except ScopeNotFoundException:
+                return False
 
     async def get_scope(self, name: str) -> "AsyncScope":
-        return self._resolve_scope(name)
+        async with self._lock:
+            return self._resolve_scope(name)
 
     async def add_scope(self, name: str, scope: "AsyncScope"):
         async with self._lock:
@@ -150,8 +159,9 @@ class AsyncScope(BaseScope, ScopeResolverMixin):
             del parent_scope._children[child_name]
 
     async def call(self, name: str, *args, **kwargs):
-        rule = self._resolve_rule(name)
-        result = rule(*args, **kwargs)
-        if inspect.isawaitable(result):
-            result = await result
-        return result
+        async with self._lock:
+            rule = self._resolve_rule(name)
+            result = rule(*args, **kwargs)
+            if inspect.isawaitable(result):
+                result = await result
+            return result
