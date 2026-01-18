@@ -120,6 +120,7 @@ class AsyncGate:
         self._pending_scopes: List[Tuple[str, AsyncScope]] = []
         self._pending_policies: List[Tuple[str, AsyncPolicy]] = []
         self._lock = asyncio.Lock()
+        self._setup_completed = False
 
     async def setup(self):
         async with self._lock:
@@ -207,6 +208,10 @@ class AsyncGate:
         await self._root.remove_scope(name)
 
     async def check(self, rule: str, user: Any, *args, **kwargs) -> Union[Response, bool]:
+        if not self._setup_completed:
+            await self.setup()
+            self._setup_completed = True
+
         result = await self._call_rule(rule, user, *args, **kwargs)
         if isinstance(result, Response):
             return result
