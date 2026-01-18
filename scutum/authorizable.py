@@ -1,7 +1,6 @@
 from scutum.gate import Gate, AsyncGate
-from typing import Type
 
-def authorizable(gate: Type[Gate] | Type[AsyncGate]):
+def authorizable(gate: Gate | AsyncGate):
     if not isinstance(gate, (Gate, AsyncGate)):
         raise ValueError("Gate or AsyncGate instance expected")
 
