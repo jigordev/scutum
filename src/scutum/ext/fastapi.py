@@ -1,51 +1,26 @@
 from typing import Any, Callable, Awaitable
-from fastapi import Depends, HTTPException
-from scutum import AsyncGate, Response
+from fastapi import Request, Depends, HTTPException
+from scutum import AsyncGate, AuthorizationException
 
-class Can:
-    def __init__(
-        self,
-        rule: str,
-        resolver: Callable[..., Awaitable[Any]] | None = None,
+def fastapi_adapter(gate: AsyncGate, default_user_resolver: Callable[..., Awaitable[Any]]):
+    def can(
+        rule: str, 
+        user_resolver: Callable[..., Awaitable[Any]] | None = None, 
+        resource_resolver: Callable | None = None,
+        exception: Exception | None = None
     ):
-        self.rule = rule
-        self.resolver = resolver
+        async def dependency(
+            request: Request, 
+            user = Depends(user_resolver or default_user_resolver),
+            resource = Depends(resource_resolver) if resource_resolver else None
+        ):
+            args = [resource] if resource_resolver else []
+            try:
+                await gate.authorize(rule, user, *args, request=request)
+                return user
+            except AuthorizationException as e:
+                raise exception or HTTPException(status_code=403, detail=str(e))
+        return dependency
 
-    async def __call__(
-        self,
-        user: Any = Depends(),
-        resource: Any = Depends(lambda: None),
-    ):
-        gate: AsyncGate = self.gate
-
-        args = []
-        if self.resolver:
-            resource = await self.resolver()
-            args.append(resource)
-
-        try:
-            await gate.authorize(self.rule, user, *args)
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                raise
-            raise HTTPException(status_code=403, detail=str(e))
-
-        return user
-
-def create_api_gate(user_resolver: Callable[..., Awaitable[Any]]):
-    gate = AsyncGate()
-
-    async def setup_once():
-        if not getattr(gate, "_ready", False):
-            await gate.setup()
-            gate._ready = True
-
-    def CanFactory(rule: str, resolver: Callable | None = None):
-        dep = Can(rule, resolver)
-        dep.gate = gate
-        dep.__call__.__defaults__ = (Depends(user_resolver),)
-        return dep
-
-    gate.can = CanFactory
-    gate._setup = setup_once
+    gate.can = can
     return gate

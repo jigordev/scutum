@@ -4,3 +4,4 @@ from .response import Response
 from .gate import Gate, AsyncGate
 from .scope import Scope, AsyncScope
 from .types import Rule
+from .exceptions import AuthorizationException, RuleNotFoundException, ScopeNotFoundException
