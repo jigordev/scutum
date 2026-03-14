@@ -31,14 +31,20 @@ class Gate:
         self._root.add_rule(name, rule)
             
     def _register_policy(self, name: str, policy: Policy):
-        if not isinstance(policy, type) or not issubclass(policy, Policy):
-            raise TypeError("policy must be a Policy class (not an instance)")
+        if not isinstance(policy, (Policy, type)) or (isinstance(policy, type) and not issubclass(policy, Policy)):
+            raise TypeError("policy must be a Policy class or instance")
         self._ensure_policy_registration(name, policy)
 
     def _ensure_policy_registration(self, name: str, policy: Policy):
         if self._root.has_scope(name):
             raise KeyError(f"A scope named {name} already exists")
-        scope = policy._to_scope(name)
+        # Handle both policy classes and instances
+        if isinstance(policy, type):
+            # It's a class, call the classmethod
+            scope = policy._to_scope(name)
+        else:
+            # It's an instance, call the method directly on the instance
+            scope = policy.__class__._to_scope.__func__(policy, name)
         self._root.add_scope(name, scope)
 
     def _call_rule(self, name: str, *args, **kwargs):
@@ -157,14 +163,20 @@ class AsyncGate:
         await self._root.add_rule(name, rule)
 
     async def _register_policy(self, name: str, policy: AsyncPolicy):
-        if not isinstance(policy, type) or not issubclass(policy, AsyncPolicy):
-            raise TypeError("policy must be a AsyncPolicy class (not an instance)")
+        if not isinstance(policy, (AsyncPolicy, type)) or (isinstance(policy, type) and not issubclass(policy, AsyncPolicy)):
+            raise TypeError("policy must be an AsyncPolicy class or instance")
         await self._ensure_policy_registration(name, policy)
 
     async def _ensure_policy_registration(self, name: str, policy: AsyncPolicy):
         if await self._root.has_scope(name):
             raise KeyError(f"A scope named {name} already exists")
-        scope = policy._to_scope(name)
+        # Handle both policy classes and instances
+        if isinstance(policy, type):
+            # It's a class, call the classmethod
+            scope = policy._to_scope(name)
+        else:
+            # It's an instance, call the method directly on the instance
+            scope = policy.__class__._to_scope.__func__(policy, name)
         await self._root.add_scope(name, await scope)
 
     async def _call_rule(self, name: str, *args, **kwargs):
@@ -208,7 +220,7 @@ class AsyncGate:
         await self._root.remove_scope(name)
 
     async def check(self, rule: str, user: Any, *args, **kwargs) -> Union[Response, bool]:
-        if not self._setup_completed:
+        if not self._setup_completed or self._pending_rules or self._pending_scopes or self._pending_policies:
             await self.setup()
             self._setup_completed = True
 

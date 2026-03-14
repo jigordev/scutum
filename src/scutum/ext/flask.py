@@ -1,5 +1,6 @@
 from flask import Response, g
 from functools import wraps
+from scutum.gate import Gate
 from scutum.exceptions import AuthorizationException
 from scutum.cache import reset_scoped_cache
 
@@ -39,7 +40,7 @@ class Scutum:
             @wraps(fn)
             def wrapper(*args, **kwargs):
                 user = self._user_resolver()
-                self._gate.authorize(rule, user)
+                self._gate.authorize(rule, user, *args, **kwargs)
                 return fn(*args, **kwargs)
             return wrapper
         return decorator
@@ -49,7 +50,7 @@ class Scutum:
             @wraps(fn)
             def wrapper(*args, **kwargs):
                 user = self._user_resolver()
-                if self._gate.none(rules, user):
+                if self._gate.none(rules, user, *args, **kwargs):
                     raise AuthorizationException()
                 return fn(*args, **kwargs)
             return wrapper
